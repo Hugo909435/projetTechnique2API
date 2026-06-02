@@ -19,6 +19,8 @@ public record MonthlyReportResponseDto(
         LocalDateTime trainerValidatedAt,
         LocalDateTime tutorValidatedAt,
         LocalDateTime completedAt,
+        String trainerNote,
+        String tutorNote,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

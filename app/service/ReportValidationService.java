@@ -7,7 +7,6 @@ import app.exception.ForbiddenException;
 import app.exception.ResourceNotFoundException;
 import app.model.*;
 import app.repository.MonthlyReportRepository;
-import app.repository.ReportCommentRepository;
 import app.repository.StudentProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,18 +26,15 @@ public class ReportValidationService {
             DateTimeFormatter.ofPattern("MMMM yyyy", Locale.FRENCH);
 
     private final MonthlyReportRepository reportRepository;
-    private final ReportCommentRepository commentRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final UserService userService;
     private final MonthlyReportService reportService;
 
     public ReportValidationService(MonthlyReportRepository reportRepository,
-                                    ReportCommentRepository commentRepository,
                                     StudentProfileRepository studentProfileRepository,
                                     UserService userService,
                                     MonthlyReportService reportService) {
         this.reportRepository = reportRepository;
-        this.commentRepository = commentRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.userService = userService;
         this.reportService = reportService;
@@ -128,8 +124,8 @@ public class ReportValidationService {
         report.setStatus(ReportStatus.TRAINER_VALIDATED);
         report.setTrainerValidatedAt(LocalDateTime.now());
         report.setValidatedByTrainer(trainer);
-        appendLog(report, from, ReportStatus.TRAINER_VALIDATED, trainer, comment);
-        createInternalCommentIfPresent(report, trainer, comment);
+        if (comment != null && !comment.isBlank()) report.setTrainerNote(comment.trim());
+        appendLog(report, from, ReportStatus.TRAINER_VALIDATED, trainer, null);
         reportRepository.save(report);
 
         notifyOnStatusChanged(report, trainer, from, ReportStatus.TRAINER_VALIDATED);
@@ -161,8 +157,8 @@ public class ReportValidationService {
         report.setStatus(ReportStatus.TUTOR_VALIDATED);
         report.setTutorValidatedAt(now);
         report.setValidatedByTutor(tutor);
-        appendLog(report, ReportStatus.TRAINER_VALIDATED, ReportStatus.TUTOR_VALIDATED, tutor, comment);
-        createInternalCommentIfPresent(report, tutor, comment);
+        if (comment != null && !comment.isBlank()) report.setTutorNote(comment.trim());
+        appendLog(report, ReportStatus.TRAINER_VALIDATED, ReportStatus.TUTOR_VALIDATED, tutor, null);
 
         // TUTOR_VALIDATED → COMPLETED (immédiat)
         report.setStatus(ReportStatus.COMPLETED);
@@ -260,29 +256,13 @@ public class ReportValidationService {
         report.getStatusLogs().add(log);
     }
 
-    private void createInternalCommentIfPresent(MonthlyReport report, User author, String comment) {
-        if (comment == null || comment.isBlank()) return;
-        commentRepository.save(ReportComment.builder()
-                .report(report)
-                .author(author)
-                .authorRole(author.getRole())
-                .content(comment.trim())
-                .build());
-    }
-
     private MonthlyReport requireReport(Long id) {
         return reportRepository.findByIdWithSections(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rapport introuvable : " + id));
     }
 
     private MonthlyReportSummaryDto toSummaryDto(MonthlyReport r) {
-        return new MonthlyReportSummaryDto(
-                r.getId(), r.getYear(), r.getMonth(),
-                YearMonth.of(r.getYear(), r.getMonth()).format(MONTH_FORMATTER),
-                r.getStatus().name(),
-                r.getStudent().getId(),
-                r.getStudent().getFirstName() + " " + r.getStudent().getLastName(),
-                r.getCreatedAt(), r.getUpdatedAt());
+        return reportService.toSummaryDto(r);
     }
 
     private List<Long> studentIds(List<StudentProfile> profiles) {

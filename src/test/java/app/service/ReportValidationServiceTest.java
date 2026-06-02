@@ -6,7 +6,6 @@ import app.dto.ReopenReportRequest;
 import app.exception.ForbiddenException;
 import app.model.*;
 import app.repository.MonthlyReportRepository;
-import app.repository.ReportCommentRepository;
 import app.repository.StudentProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -30,7 +29,6 @@ import static org.mockito.Mockito.*;
 class ReportValidationServiceTest {
 
     @Mock MonthlyReportRepository reportRepository;
-    @Mock ReportCommentRepository commentRepository;
     @Mock StudentProfileRepository studentProfileRepository;
     @Mock UserService userService;
     @Mock MonthlyReportService reportService;
@@ -194,7 +192,7 @@ class ReportValidationServiceTest {
         }
 
         @Test
-        void trainer_with_comment_saves_internal_comment() {
+        void trainer_with_comment_saves_trainer_note_on_report() {
             MonthlyReport report = buildReport(10L, student, 2024, 5, ReportStatus.STUDENT_VALIDATED);
             when(userService.requireUser("trainer@test.com")).thenReturn(trainer);
             when(reportRepository.findByIdWithSections(10L)).thenReturn(Optional.of(report));
@@ -204,7 +202,7 @@ class ReportValidationServiceTest {
 
             service.validateByTrainer(10L, "trainer@test.com", "Bon rapport");
 
-            verify(commentRepository).save(argThat(c -> "Bon rapport".equals(c.getContent())));
+            assertThat(report.getTrainerNote()).isEqualTo("Bon rapport");
         }
     }
 
@@ -242,7 +240,7 @@ class ReportValidationServiceTest {
         }
 
         @Test
-        void tutor_with_comment_saves_internal_comment() {
+        void tutor_with_comment_saves_tutor_note_on_report() {
             MonthlyReport report = buildReport(10L, student, 2024, 5, ReportStatus.TRAINER_VALIDATED);
             when(userService.requireUser("tutor@test.com")).thenReturn(tutor);
             when(reportRepository.findByIdWithSections(10L)).thenReturn(Optional.of(report));
@@ -252,7 +250,7 @@ class ReportValidationServiceTest {
 
             service.validateByTutor(10L, "tutor@test.com", "Très bon travail");
 
-            verify(commentRepository).save(argThat(c -> "Très bon travail".equals(c.getContent())));
+            assertThat(report.getTutorNote()).isEqualTo("Très bon travail");
         }
     }
 
@@ -375,6 +373,7 @@ class ReportValidationServiceTest {
                 1L, "Alice Durand",
                 List.of(), List.of(),
                 null, null, null, null, null,
+                null, null,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 }

@@ -60,7 +60,7 @@ public class MonthlyReportService {
                         .status(ReportStatus.DRAFT)
                         .build());
 
-        // 6 sections vides dans l'ordre de l'enum
+        // Sections vides dans l'ordre de l'enum
         List<ReportSection> sections = Arrays.stream(ReportSectionType.values())
                 .map(type -> ReportSection.builder()
                         .report(report)
@@ -69,6 +69,8 @@ public class MonthlyReportService {
                         .build())
                 .collect(Collectors.toList());
         sectionRepository.saveAll(sections);
+        // Mise à jour de la collection en mémoire pour éviter le retour du cache Hibernate vide
+        report.getSections().addAll(sections);
 
         // Entrée dans l'historique
         appendLog(report, null, ReportStatus.DRAFT, student, null);
@@ -207,6 +209,8 @@ public class MonthlyReportService {
                 r.getTrainerValidatedAt(),
                 r.getTutorValidatedAt(),
                 r.getCompletedAt(),
+                r.getTrainerNote(),
+                r.getTutorNote(),
                 r.getCreatedAt(), r.getUpdatedAt());
     }
 
@@ -217,7 +221,19 @@ public class MonthlyReportService {
                 r.getStatus().name(),
                 r.getStudent().getId(),
                 r.getStudent().getFirstName() + " " + r.getStudent().getLastName(),
+                sectionPreview(r, ReportSectionType.SCHOOL_ACTIVITIES),
+                sectionPreview(r, ReportSectionType.COMPANY_ACTIVITIES),
                 r.getCreatedAt(), r.getUpdatedAt());
+    }
+
+    private String sectionPreview(MonthlyReport r, ReportSectionType type) {
+        return r.getSections().stream()
+                .filter(s -> s.getSectionType() == type)
+                .map(s -> s.getContent() != null && s.getContent().length() > 120
+                        ? s.getContent().substring(0, 120) + "…"
+                        : s.getContent())
+                .findFirst()
+                .orElse("");
     }
 
     private String monthLabel(int month, int year) {

@@ -10,6 +10,8 @@ public record MonthlyReportSummaryDto(
         String status,
         Long studentId,
         String studentName,
+        String schoolActivitiesPreview,
+        String companyActivitiesPreview,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

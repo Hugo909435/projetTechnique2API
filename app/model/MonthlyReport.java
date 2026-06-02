@@ -80,6 +80,14 @@ public class MonthlyReport {
     @JoinColumn(name = "validated_by_tutor_id")
     private User validatedByTutor;
 
+    /** Note visible par l'étudiant, laissée par le formateur lors de la validation. */
+    @Column(name = "trainer_note", columnDefinition = "TEXT")
+    private String trainerNote;
+
+    /** Note visible par l'étudiant, laissée par le tuteur lors de la validation. */
+    @Column(name = "tutor_note", columnDefinition = "TEXT")
+    private String tutorNote;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

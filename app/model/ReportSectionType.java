@@ -2,7 +2,8 @@ package app.model;
 
 /** Ordre de définition = ordre d'affichage dans le rapport. */
 public enum ReportSectionType {
-    ACTIVITIES("Activités réalisées"),
+    SCHOOL_ACTIVITIES("Activités réalisées à l'école"),
+    COMPANY_ACTIVITIES("Activités réalisées en entreprise"),
     SKILLS("Compétences développées"),
     DIFFICULTIES("Difficultés rencontrées"),
     SOLUTIONS("Solutions apportées"),

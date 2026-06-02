@@ -95,7 +95,7 @@ class MonthlyReportServiceTest {
 
         @Test
         void student_can_update_draft_report() {
-            ReportSection section = buildSection(draftReport, ReportSectionType.ACTIVITIES, "old");
+            ReportSection section = buildSection(draftReport, ReportSectionType.SCHOOL_ACTIVITIES, "old");
             draftReport.getSections().add(section);
 
             when(userService.requireUser("student@test.com")).thenReturn(student);
@@ -105,7 +105,7 @@ class MonthlyReportServiceTest {
             when(sectionRepository.saveAll(any())).thenReturn(List.of());
 
             var update = new UpdateMonthlyReportRequest(List.of(
-                    new UpdateMonthlyReportRequest.SectionUpdate("ACTIVITIES", "new content")));
+                    new UpdateMonthlyReportRequest.SectionUpdate("SCHOOL_ACTIVITIES", "new content")));
 
             service.updateReport(10L, update, "student@test.com");
 
