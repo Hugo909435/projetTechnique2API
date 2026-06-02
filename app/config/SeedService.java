@@ -46,9 +46,9 @@ public class SeedService {
         User trainer2 = uoc("trainer2@example.com", pwd, "Sophie",  "Bernard", "0605060708", Role.TRAINER);
         User tutor1   = uoc("tutor1@example.com",   pwd, "Pierre",  "Martin",  "0611121314", Role.TUTOR);
         User tutor2   = uoc("tutor2@example.com",   pwd, "Marie",   "Leblanc", "0615161718", Role.TUTOR);
-        User alice    = uoc("student1@example.com", pwd, "Alice",   "Durand",  null,         Role.STUDENT);
-        User bob      = uoc("student2@example.com", pwd, "Bob",     "Martin",  null,         Role.STUDENT);
-        User clara    = uoc("student3@example.com", pwd, "Clara",   "Petit",   null,         Role.STUDENT);
+        User alice    = uoc("student1@example.com", pwd, "Alice",   "Durand",  "0620304050", Role.STUDENT);
+        User bob      = uoc("student2@example.com", pwd, "Bob",     "Martin",  "0621314151", Role.STUDENT);
+        User clara    = uoc("student3@example.com", pwd, "Clara",   "Petit",   "0622324252", Role.STUDENT);
 
         // ── Profils ───────────────────────────────────────────────────────────
         if (profileRepo.findByStudentId(alice.getId()).isEmpty())
