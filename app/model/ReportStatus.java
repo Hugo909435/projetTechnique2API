@@ -16,6 +16,7 @@ public enum ReportStatus {
     public boolean canBeResetByStudentEdit() {
         return this == STUDENT_VALIDATED
                 || this == AUTO_VALIDATED
+                || this == TRAINER_VALIDATED
                 || this == TUTOR_VALIDATED
                 || this == COMPLETED;
     }

@@ -7,6 +7,8 @@ import app.exception.ResourceNotFoundException;
 import app.model.*;
 import app.repository.MonthlyReportRepository;
 import app.repository.StudentProfileRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,7 @@ import java.util.Locale;
 @Transactional
 public class ReportValidationService {
 
+    private static final Logger log = LoggerFactory.getLogger(ReportValidationService.class);
     private static final DateTimeFormatter MONTH_FORMATTER =
             DateTimeFormatter.ofPattern("MMMM yyyy", Locale.FRENCH);
 
@@ -28,15 +31,18 @@ public class ReportValidationService {
     private final StudentProfileRepository studentProfileRepository;
     private final UserService userService;
     private final MonthlyReportService reportService;
+    private final EmailService emailService;
 
     public ReportValidationService(MonthlyReportRepository reportRepository,
                                     StudentProfileRepository studentProfileRepository,
                                     UserService userService,
-                                    MonthlyReportService reportService) {
+                                    MonthlyReportService reportService,
+                                    EmailService emailService) {
         this.reportRepository = reportRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.userService = userService;
         this.reportService = reportService;
+        this.emailService = emailService;
     }
 
     // ── Validation étudiant ───────────────────────────────────────────────────
@@ -194,20 +200,20 @@ public class ReportValidationService {
                 .stream().map(this::toSummaryDto).toList();
     }
 
-    // ── Hook notifications (extensible ultérieurement) ────────────────────────
+    // ── Notifications email ───────────────────────────────────────────────────
 
-    /**
-     * Appelé après chaque transition de statut.
-     * À implémenter dans un module mail/notification ultérieur.
-     *
-     * @param report  le rapport dont le statut a changé
-     * @param actor   l'utilisateur à l'origine du changement (null si auto-validation)
-     * @param from    statut précédent
-     * @param to      nouveau statut
-     */
     private void notifyOnStatusChanged(MonthlyReport report, User actor,
                                         ReportStatus from, ReportStatus to) {
-        // TODO : envoyer email/notification selon la transition
+        try {
+            switch (to) {
+                case STUDENT_VALIDATED, AUTO_VALIDATED -> emailService.sendTutorValidationRequest(report);
+                case TUTOR_VALIDATED                   -> emailService.sendTrainerValidationRequest(report);
+                default -> {}
+            }
+        } catch (Exception e) {
+            log.error("Erreur envoi email rapport {} (transition {} → {}) : {}",
+                    report.getId(), from, to, e.getMessage());
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
