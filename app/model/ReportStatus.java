@@ -6,16 +6,17 @@ public enum ReportStatus {
     AUTO_VALIDATED,
     TRAINER_VALIDATED,
     TUTOR_VALIDATED,
-    COMPLETED,
-    REOPENED;
+    COMPLETED;
 
     public boolean isEditable() {
-        return this == DRAFT || this == REOPENED;
+        return this == DRAFT;
     }
 
-    public boolean canBeReopened() {
+    /** L'étudiant peut modifier le rapport et cela réinitialise toutes les validations. */
+    public boolean canBeResetByStudentEdit() {
         return this == STUDENT_VALIDATED
                 || this == AUTO_VALIDATED
-                || this == TRAINER_VALIDATED;
+                || this == TUTOR_VALIDATED
+                || this == COMPLETED;
     }
 }

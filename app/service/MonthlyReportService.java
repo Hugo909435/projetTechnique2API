@@ -142,6 +142,25 @@ public class MonthlyReportService {
         }
 
         sectionRepository.saveAll(byType.values());
+
+        // Si l'étudiant modifie un rapport déjà validé, on réinitialise toutes les validations
+        if (requester.getRole() == Role.STUDENT && report.getStatus().canBeResetByStudentEdit()) {
+            ReportStatus previousStatus = report.getStatus();
+            report.setStatus(ReportStatus.DRAFT);
+            report.setStudentValidatedAt(null);
+            report.setAutoValidatedAt(null);
+            report.setTrainerValidatedAt(null);
+            report.setTutorValidatedAt(null);
+            report.setCompletedAt(null);
+            report.setValidatedByStudent(null);
+            report.setValidatedByTrainer(null);
+            report.setValidatedByTutor(null);
+            report.setTrainerNote(null);
+            report.setTutorNote(null);
+            appendLog(report, previousStatus, ReportStatus.DRAFT, requester,
+                    "Rapport modifié par l'étudiant — validation réinitialisée");
+        }
+
         return toResponseDto(requireWithDetails(id));
     }
 
@@ -201,6 +220,7 @@ public class MonthlyReportService {
                 monthLabel(r.getMonth(), r.getYear()),
                 r.getStatus().name(),
                 r.getStatus().isEditable(),
+                r.getStatus().canBeResetByStudentEdit(),
                 r.getStudent().getId(),
                 r.getStudent().getFirstName() + " " + r.getStudent().getLastName(),
                 sections, logs,

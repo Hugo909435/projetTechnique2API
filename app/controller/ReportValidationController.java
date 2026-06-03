@@ -2,7 +2,6 @@ package app.controller;
 
 import app.dto.MonthlyReportResponseDto;
 import app.dto.MonthlyReportSummaryDto;
-import app.dto.ReopenReportRequest;
 import app.dto.ValidateReportRequest;
 import app.service.ReportValidationService;
 import jakarta.validation.Valid;
@@ -46,15 +45,6 @@ public class ReportValidationController {
             Authentication auth) {
         String comment = request != null ? request.comment() : null;
         return ResponseEntity.ok(validationService.validateByTutor(id, auth.getName(), comment));
-    }
-
-    /** Réouverture par le formateur ou l'admin. */
-    @PostMapping("/api/reports/{id}/reopen")
-    public ResponseEntity<MonthlyReportResponseDto> reopen(
-            @PathVariable Long id,
-            @RequestBody(required = false) ReopenReportRequest request,
-            Authentication auth) {
-        return ResponseEntity.ok(validationService.reopenReport(id, request, auth.getName()));
     }
 
     /** Rapports en attente de validation pour le demandeur (TRAINER ou TUTOR). */

@@ -46,25 +46,9 @@ public class ReportPermissionService {
         if (requester.getRole() != Role.STUDENT)
             throw new ForbiddenException("Seul l'étudiant peut modifier son rapport");
 
-        if (!report.getStatus().isEditable())
+        if (!report.getStatus().isEditable() && !report.getStatus().canBeResetByStudentEdit())
             throw new ForbiddenException(
                 "Ce rapport n'est plus modifiable (statut : " + report.getStatus() + ")");
-    }
-
-    /** Vérifie que le demandeur peut rouvrir ce rapport. */
-    public void assertCanReopen(MonthlyReport report, User requester) {
-        if (requester.getRole() != Role.TRAINER && requester.getRole() != Role.ADMIN)
-            throw new ForbiddenException("Seul un formateur ou un admin peut rouvrir un rapport");
-
-        if (requester.getRole() == Role.TRAINER) {
-            if (!studentProfileRepository.existsByStudentIdAndTrainerId(
-                    report.getStudent().getId(), requester.getId()))
-                throw new ForbiddenException("Ce rapport n'appartient pas à l'un de vos étudiants");
-        }
-
-        if (!report.getStatus().canBeReopened())
-            throw new ForbiddenException(
-                "Ce rapport ne peut pas être rouvert (statut : " + report.getStatus() + ")");
     }
 
     /** Indique si l'utilisateur donné est autorisé à lire les rapports d'un étudiant. */

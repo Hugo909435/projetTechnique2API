@@ -10,6 +10,7 @@ public record MonthlyReportResponseDto(
         String monthLabel,
         String status,
         boolean editable,
+        boolean studentCanEditAndReset,
         Long studentId,
         String studentName,
         List<ReportSectionDto> sections,

@@ -45,7 +45,7 @@ public class MonthlyReportController {
                 .body(reportService.createReport(request, auth.getName()));
     }
 
-    /** Mise à jour des sections — DRAFT / REOPENED seulement, par l'étudiant. */
+    /** Mise à jour des sections — par l'étudiant (DRAFT ou reset depuis un statut validé). */
     @PutMapping("/api/reports/{id}")
     public ResponseEntity<MonthlyReportResponseDto> updateReport(
             @PathVariable Long id,

@@ -2,7 +2,6 @@ package app.service;
 
 import app.dto.MonthlyReportResponseDto;
 import app.dto.MonthlyReportSummaryDto;
-import app.dto.ReopenReportRequest;
 import app.exception.ForbiddenException;
 import app.model.*;
 import app.repository.MonthlyReportRepository;
@@ -68,19 +67,6 @@ class ReportValidationServiceTest {
             assertThat(draftReport.getStatus()).isEqualTo(ReportStatus.STUDENT_VALIDATED);
             assertThat(draftReport.getStudentValidatedAt()).isNotNull();
             assertThat(draftReport.getValidatedByStudent()).isEqualTo(student);
-        }
-
-        @Test
-        void student_can_validate_reopened_report() {
-            MonthlyReport reopened = buildReport(10L, student, 2024, 5, ReportStatus.REOPENED);
-            when(userService.requireUser("student@test.com")).thenReturn(student);
-            when(reportRepository.findByIdWithSections(10L)).thenReturn(Optional.of(reopened));
-            when(reportRepository.save(any())).thenReturn(reopened);
-            when(reportService.toResponseDto(any())).thenReturn(stubDto);
-
-            service.validateByStudent(10L, "student@test.com");
-
-            assertThat(reopened.getStatus()).isEqualTo(ReportStatus.STUDENT_VALIDATED);
         }
 
         @Test
@@ -300,48 +286,6 @@ class ReportValidationServiceTest {
         }
     }
 
-    // ── Réouverture ───────────────────────────────────────────────────────────
-
-    @Nested
-    class ReopenReport {
-
-        @Test
-        void trainer_can_reopen_student_validated_report() {
-            MonthlyReport report = buildReport(10L, student, 2024, 5, ReportStatus.STUDENT_VALIDATED);
-            when(userService.requireUser("trainer@test.com")).thenReturn(trainer);
-            when(reportRepository.findByIdWithSections(10L)).thenReturn(Optional.of(report));
-            when(studentProfileRepository.existsByStudentIdAndTrainerId(1L, 2L)).thenReturn(true);
-            when(reportRepository.save(any())).thenReturn(report);
-            when(reportService.toResponseDto(any())).thenReturn(stubDto);
-
-            service.reopenReport(10L, new ReopenReportRequest("Corrections nécessaires"),
-                    "trainer@test.com");
-
-            assertThat(report.getStatus()).isEqualTo(ReportStatus.REOPENED);
-        }
-
-        @Test
-        void student_cannot_reopen_report() {
-            when(userService.requireUser("student@test.com")).thenReturn(student);
-
-            assertThatThrownBy(() -> service.reopenReport(10L, null, "student@test.com"))
-                    .isInstanceOf(ForbiddenException.class)
-                    .hasMessageContaining("formateur");
-        }
-
-        @Test
-        void completed_report_cannot_be_reopened() {
-            MonthlyReport completed = buildReport(10L, student, 2024, 5, ReportStatus.COMPLETED);
-            when(userService.requireUser("trainer@test.com")).thenReturn(trainer);
-            when(reportRepository.findByIdWithSections(10L)).thenReturn(Optional.of(completed));
-            when(studentProfileRepository.existsByStudentIdAndTrainerId(1L, 2L)).thenReturn(true);
-
-            assertThatThrownBy(() -> service.reopenReport(10L, null, "trainer@test.com"))
-                    .isInstanceOf(ForbiddenException.class)
-                    .hasMessageContaining("rouvert");
-        }
-    }
-
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private User buildUser(Long id, String email, Role role, String first, String last) {
@@ -369,7 +313,7 @@ class ReportValidationServiceTest {
 
     private MonthlyReportResponseDto buildStubDto() {
         return new MonthlyReportResponseDto(
-                10L, 2024, 5, "mai 2024", "STUDENT_VALIDATED", false,
+                10L, 2024, 5, "mai 2024", "STUDENT_VALIDATED", false, false,
                 1L, "Alice Durand",
                 List.of(), List.of(),
                 null, null, null, null, null,

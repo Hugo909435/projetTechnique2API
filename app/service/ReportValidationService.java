@@ -2,7 +2,6 @@ package app.service;
 
 import app.dto.MonthlyReportResponseDto;
 import app.dto.MonthlyReportSummaryDto;
-import app.dto.ReopenReportRequest;
 import app.exception.ForbiddenException;
 import app.exception.ResourceNotFoundException;
 import app.model.*;
@@ -53,7 +52,7 @@ public class ReportValidationService {
         if (!report.getStudent().getId().equals(student.getId()))
             throw new ForbiddenException("Vous ne pouvez valider que vos propres rapports");
 
-        if (report.getStatus() != ReportStatus.DRAFT && report.getStatus() != ReportStatus.REOPENED)
+        if (report.getStatus() != ReportStatus.DRAFT)
             throw new ForbiddenException(
                     "Ce rapport ne peut pas être validé (statut actuel : " + report.getStatus() + ")");
 
@@ -114,21 +113,26 @@ public class ReportValidationService {
                 report.getStudent().getId(), trainer.getId()))
             throw new ForbiddenException("Ce rapport n'appartient pas à l'un de vos étudiants");
 
-        if (report.getStatus() != ReportStatus.STUDENT_VALIDATED
-                && report.getStatus() != ReportStatus.AUTO_VALIDATED)
+        if (report.getStatus() != ReportStatus.TUTOR_VALIDATED)
             throw new ForbiddenException(
-                    "Le formateur ne peut valider qu'après la validation étudiant " +
+                    "Le formateur ne peut valider qu'après le tuteur " +
                     "(statut actuel : " + report.getStatus() + ")");
 
+        LocalDateTime now = LocalDateTime.now();
         ReportStatus from = report.getStatus();
         report.setStatus(ReportStatus.TRAINER_VALIDATED);
-        report.setTrainerValidatedAt(LocalDateTime.now());
+        report.setTrainerValidatedAt(now);
         report.setValidatedByTrainer(trainer);
         if (comment != null && !comment.isBlank()) report.setTrainerNote(comment.trim());
         appendLog(report, from, ReportStatus.TRAINER_VALIDATED, trainer, null);
+
+        // TRAINER_VALIDATED → COMPLETED (immédiat)
+        report.setStatus(ReportStatus.COMPLETED);
+        report.setCompletedAt(now);
+        appendLog(report, ReportStatus.TRAINER_VALIDATED, ReportStatus.COMPLETED, trainer, null);
         reportRepository.save(report);
 
-        notifyOnStatusChanged(report, trainer, from, ReportStatus.TRAINER_VALIDATED);
+        notifyOnStatusChanged(report, trainer, from, ReportStatus.COMPLETED);
         return reportService.toResponseDto(requireReport(reportId));
     }
 
@@ -146,57 +150,21 @@ public class ReportValidationService {
                 report.getStudent().getId(), tutor.getId()))
             throw new ForbiddenException("Ce rapport n'appartient pas à l'un de vos alternants");
 
-        if (report.getStatus() != ReportStatus.TRAINER_VALIDATED)
+        if (report.getStatus() != ReportStatus.STUDENT_VALIDATED
+                && report.getStatus() != ReportStatus.AUTO_VALIDATED)
             throw new ForbiddenException(
-                    "Le tuteur ne peut valider qu'après le formateur " +
+                    "Le tuteur ne peut valider qu'après la validation étudiant " +
                     "(statut actuel : " + report.getStatus() + ")");
 
-        LocalDateTime now = LocalDateTime.now();
-
-        // TRAINER_VALIDATED → TUTOR_VALIDATED
+        ReportStatus from = report.getStatus();
         report.setStatus(ReportStatus.TUTOR_VALIDATED);
-        report.setTutorValidatedAt(now);
+        report.setTutorValidatedAt(LocalDateTime.now());
         report.setValidatedByTutor(tutor);
         if (comment != null && !comment.isBlank()) report.setTutorNote(comment.trim());
-        appendLog(report, ReportStatus.TRAINER_VALIDATED, ReportStatus.TUTOR_VALIDATED, tutor, null);
-
-        // TUTOR_VALIDATED → COMPLETED (immédiat)
-        report.setStatus(ReportStatus.COMPLETED);
-        report.setCompletedAt(now);
-        appendLog(report, ReportStatus.TUTOR_VALIDATED, ReportStatus.COMPLETED, tutor, null);
+        appendLog(report, from, ReportStatus.TUTOR_VALIDATED, tutor, null);
         reportRepository.save(report);
 
-        notifyOnStatusChanged(report, tutor, ReportStatus.TUTOR_VALIDATED, ReportStatus.COMPLETED);
-        return reportService.toResponseDto(requireReport(reportId));
-    }
-
-    // ── Réouverture ───────────────────────────────────────────────────────────
-
-    public MonthlyReportResponseDto reopenReport(Long reportId, ReopenReportRequest req,
-                                                  String email) {
-        User requester = userService.requireUser(email);
-
-        if (requester.getRole() != Role.TRAINER && requester.getRole() != Role.ADMIN)
-            throw new ForbiddenException("Seul un formateur ou un admin peut rouvrir un rapport");
-
-        MonthlyReport report = requireReport(reportId);
-
-        if (requester.getRole() == Role.TRAINER
-                && !studentProfileRepository.existsByStudentIdAndTrainerId(
-                        report.getStudent().getId(), requester.getId()))
-            throw new ForbiddenException("Ce rapport n'appartient pas à l'un de vos étudiants");
-
-        if (!report.getStatus().canBeReopened())
-            throw new ForbiddenException(
-                    "Ce rapport ne peut pas être rouvert (statut : " + report.getStatus() + ")");
-
-        ReportStatus from = report.getStatus();
-        report.setStatus(ReportStatus.REOPENED);
-        appendLog(report, from, ReportStatus.REOPENED, requester,
-                req != null ? req.note() : null);
-        reportRepository.save(report);
-
-        notifyOnStatusChanged(report, requester, from, ReportStatus.REOPENED);
+        notifyOnStatusChanged(report, tutor, from, ReportStatus.TUTOR_VALIDATED);
         return reportService.toResponseDto(requireReport(reportId));
     }
 
@@ -209,13 +177,13 @@ public class ReportValidationService {
         List<ReportStatus> statuses;
 
         switch (requester.getRole()) {
-            case TRAINER -> {
-                studentIds = studentIds(studentProfileRepository.findByTrainerId(requester.getId()));
-                statuses = List.of(ReportStatus.STUDENT_VALIDATED, ReportStatus.AUTO_VALIDATED);
-            }
             case TUTOR -> {
                 studentIds = studentIds(studentProfileRepository.findByTutorId(requester.getId()));
-                statuses = List.of(ReportStatus.TRAINER_VALIDATED);
+                statuses = List.of(ReportStatus.STUDENT_VALIDATED, ReportStatus.AUTO_VALIDATED);
+            }
+            case TRAINER -> {
+                studentIds = studentIds(studentProfileRepository.findByTrainerId(requester.getId()));
+                statuses = List.of(ReportStatus.TUTOR_VALIDATED);
             }
             default -> { return List.of(); }
         }
