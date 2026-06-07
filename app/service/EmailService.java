@@ -84,6 +84,26 @@ public class EmailService {
         );
     }
 
+    /** Notifie un tuteur qu'une visite est à planifier. */
+    public void sendVisitNotification(User tutor, User trainer) {
+        send(
+            tutor.getEmail(),
+            "Une visite est à planifier — " + fullName(trainer),
+            buildVisitBody(tutor.getFirstName(), fullName(trainer))
+        );
+    }
+
+    private String buildVisitBody(String tutorFirstName, String trainerName) {
+        return """
+                <html><body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto">
+                  <h2 style="color:#4A90D9">Visite à planifier</h2>
+                  <p>Bonjour %s,</p>
+                  <p>Le formateur <strong>%s</strong> souhaite organiser une visite et a proposé des créneaux.
+                     Connectez-vous à la plateforme pour sélectionner celui qui vous convient.</p>
+                </body></html>
+                """.formatted(tutorFirstName, trainerName);
+    }
+
     private void send(String to, String subject, String htmlBody) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
