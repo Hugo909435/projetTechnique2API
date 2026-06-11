@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,16 +23,17 @@ public class SeedService {
     private final ReportSectionRepository   sectionRepo;
     private final ReportStatusLogRepository logRepo;
     private final ReportCommentRepository   commentRepo;
+    private final TrainerSlotRepository     slotRepo;
     private final PasswordEncoder           encoder;
 
     public SeedService(UserRepository userRepo, StudentProfileRepository profileRepo,
                        MonthlyReportRepository reportRepo, ReportSectionRepository sectionRepo,
                        ReportStatusLogRepository logRepo, ReportCommentRepository commentRepo,
-                       PasswordEncoder encoder) {
+                       TrainerSlotRepository slotRepo, PasswordEncoder encoder) {
         this.userRepo = userRepo; this.profileRepo = profileRepo;
         this.reportRepo = reportRepo; this.sectionRepo = sectionRepo;
         this.logRepo = logRepo; this.commentRepo = commentRepo;
-        this.encoder = encoder;
+        this.slotRepo = slotRepo; this.encoder = encoder;
     }
 
     @Transactional
@@ -46,9 +48,11 @@ public class SeedService {
         User trainer2 = uoc("trainer2@example.com", pwd, "Sophie",  "Bernard", "0605060708", Role.TRAINER);
         User tutor1   = uoc("tutor1@example.com",   pwd, "Pierre",  "Martin",  "0611121314", Role.TUTOR);
         User tutor2   = uoc("tutor2@example.com",   pwd, "Marie",   "Leblanc", "0615161718", Role.TUTOR);
+        User tutor3   = uoc("tutor3@example.com",   pwd, "Luc",     "Moreau",  "0617181920", Role.TUTOR);
         User alice    = uoc("student1@example.com", pwd, "Alice",   "Durand",  "0620304050", Role.STUDENT);
         User bob      = uoc("student2@example.com", pwd, "Bob",     "Martin",  "0621314151", Role.STUDENT);
         User clara    = uoc("student3@example.com", pwd, "Clara",   "Petit",   "0622324252", Role.STUDENT);
+        User david    = uoc("student4@example.com", pwd, "David",   "Roux",    "0623334353", Role.STUDENT);
 
         // ── Profils ───────────────────────────────────────────────────────────
         if (profileRepo.findByStudentId(alice.getId()).isEmpty())
@@ -60,6 +64,9 @@ public class SeedService {
         if (profileRepo.findByStudentId(clara.getId()).isEmpty())
             profileRepo.save(StudentProfile.builder().student(clara).studentNumber("ALT-2025-003")
                     .companyName("DataSoft").trainer(trainer2).tutor(tutor2).build());
+        if (profileRepo.findByStudentId(david.getId()).isEmpty())
+            profileRepo.save(StudentProfile.builder().student(david).studentNumber("ALT-2025-004")
+                    .companyName("WebAgency").trainer(trainer1).tutor(tutor3).build());
 
         // ══════════════════════════════════════════════════════════════════════
         //  ALICE DURAND — backend Java/Spring chez TechCorp
@@ -259,16 +266,108 @@ public class SeedService {
             "Ce projet restera un moment cle de mon alternance.");
         logRepo.save(mkLog(c4, null, ReportStatus.DRAFT, clara, null));
 
+        // ══════════════════════════════════════════════════════════════════════
+        //  RAPPORTS DU MOIS DERNIER — états « prêts à démontrer » en live :
+        //  Alice DRAFT (l'étudiante valide en direct)
+        //  Bob   STUDENT_VALIDATED (le formateur puis le tuteur valident en direct)
+        //  Clara TRAINER_VALIDATED (le tuteur valide en direct → COMPLETED)
+        //  David STUDENT_VALIDATED (second cas pour le formateur)
+        // ══════════════════════════════════════════════════════════════════════
+
+        LocalDate prev = LocalDate.now().minusMonths(1);
+        int py = prev.getYear(), pm = prev.getMonthValue();
+
+        MonthlyReport am = reportRepo.save(mkReport(alice, py, pm, ReportStatus.DRAFT,
+                null, null, null, null, null));
+        sections(am,
+            "Cours sur la conteneurisation avancee : images multi-stage, securisation des conteneurs, " +
+            "orchestration Kubernetes (deployments, services, ingress, autoscaling).",
+            "Deploiement du CRM nouvelle generation sur le cluster Kubernetes de production. " +
+            "Mise en place du blue/green deployment et des sondes de sante. " +
+            "Reduction du temps de deploiement de 25 a 6 minutes.",
+            "Rapport en cours de redaction — il me reste la partie bilan a completer.");
+        logRepo.save(mkLog(am, null, ReportStatus.DRAFT, alice, null));
+
+        MonthlyReport bm = reportRepo.save(mkReport(bob, py, pm, ReportStatus.STUDENT_VALIDATED,
+                bob, null, null, null, null));
+        sections(bm,
+            "Cours sur l'internationalisation des applications web (i18n/l10n) " +
+            "et sur le rendu cote serveur avec Nuxt : SSR, hydratation, islands architecture.",
+            "Internationalisation complete du CRM en 4 langues (FR, EN, DE, ES). " +
+            "Migration des pages critiques vers le SSR pour ameliorer le SEO et le temps de premier rendu. " +
+            "Mise en place du lazy loading des bundles de traduction.",
+            "L'i18n touche toute l'application : c'est un excellent exercice d'architecture transverse.");
+        logRepo.save(mkLog(bm, null, ReportStatus.DRAFT, bob, null));
+        logRepo.save(mkLog(bm, ReportStatus.DRAFT, ReportStatus.STUDENT_VALIDATED, bob, null));
+
+        MonthlyReport cm = reportRepo.save(mkReport(clara, py, pm, ReportStatus.TRAINER_VALIDATED,
+                clara, trainer2, null,
+                "Tres bon rapport, le projet de detection de fraude passe a l'echelle. " +
+                "Je transmets au tuteur pour validation finale.", null));
+        sections(cm,
+            "Cours sur l'optimisation des pipelines Spark : partitionnement, broadcast joins, " +
+            "gestion de la memoire executor. Preparation de la certification Databricks.",
+            "Extension du systeme de detection de fraude a l'international : " +
+            "support multi-devises, regles par pays, montee en charge a 120 000 transactions/seconde. " +
+            "Reduction de 40% du cout d'infrastructure grace a l'optimisation des jobs Spark.",
+            "La certification Databricks approche, je me sens prete. " +
+            "Ce mois m'a appris a penser cout d'infrastructure, pas seulement performance.");
+        logRepo.save(mkLog(cm, null, ReportStatus.DRAFT, clara, null));
+        logRepo.save(mkLog(cm, ReportStatus.DRAFT, ReportStatus.STUDENT_VALIDATED, clara, null));
+        logRepo.save(mkLog(cm, ReportStatus.STUDENT_VALIDATED, ReportStatus.TRAINER_VALIDATED, trainer2, null));
+        comment(cm, trainer2, "Le passage a l'echelle international est une vraie reussite technique.");
+
+        MonthlyReport dm = reportRepo.save(mkReport(david, py, pm, ReportStatus.STUDENT_VALIDATED,
+                david, null, null, null, null));
+        sections(dm,
+            "Cours sur les fondamentaux du developpement web : HTML semantique, CSS moderne " +
+            "(grid, flexbox, container queries), JavaScript ES2024 et TypeScript.",
+            "Integration des maquettes du nouveau site vitrine de WebAgency : " +
+            "5 pages responsives, score Lighthouse accessibilite de 98/100. " +
+            "Premieres contributions au composant de reservation en Vue 3.",
+            "Premier mois complet en agence : le rythme est soutenu mais l'equipe est tres pedagogue.");
+        logRepo.save(mkLog(dm, null, ReportStatus.DRAFT, david, null));
+        logRepo.save(mkLog(dm, ReportStatus.DRAFT, ReportStatus.STUDENT_VALIDATED, david, null));
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  CRÉNEAUX DE VISITE — dates relatives à aujourd'hui :
+        //  trainer1 : créneaux libres (à proposer en live) + 2 propositions en
+        //             attente chez tutor1 (à confirmer en live) + 1 chez tutor3
+        //  trainer2 : visite confirmée avec tutor2 + créneau annulé (historique)
+        // ══════════════════════════════════════════════════════════════════════
+
+        LocalDate base = LocalDate.now();
+
+        // Formateur 1 — créneaux libres
+        slot(trainer1, base.plusDays(3).atTime(9, 0),   VisitType.PRESENTIEL, TrainerSlotStatus.FREE, null, null);
+        slot(trainer1, base.plusDays(3).atTime(14, 0),  VisitType.VISIO,      TrainerSlotStatus.FREE, null, null);
+        slot(trainer1, base.plusDays(7).atTime(10, 0),  VisitType.PRESENTIEL, TrainerSlotStatus.FREE, null, null);
+        slot(trainer1, base.plusDays(14).atTime(11, 0), VisitType.VISIO,      TrainerSlotStatus.FREE, null, null);
+
+        // Formateur 1 → tuteur 1 (Pierre Martin) : propositions en attente
+        slot(trainer1, base.plusDays(5).atTime(9, 30),  VisitType.PRESENTIEL, TrainerSlotStatus.PROPOSED, tutor1, null);
+        slot(trainer1, base.plusDays(6).atTime(15, 0),  VisitType.VISIO,      TrainerSlotStatus.PROPOSED, tutor1, null);
+
+        // Formateur 1 → tuteur 3 (Luc Moreau) : une proposition en attente
+        slot(trainer1, base.plusDays(8).atTime(14, 30), VisitType.VISIO,      TrainerSlotStatus.PROPOSED, tutor3, null);
+
+        // Formateur 2 ↔ tuteur 2 (Marie Leblanc) : visite confirmée + historique
+        slot(trainer2, base.plusDays(9).atTime(10, 0),  VisitType.PRESENTIEL, TrainerSlotStatus.BOOKED,    tutor2, tutor2);
+        slot(trainer2, base.plusDays(10).atTime(14, 0), VisitType.VISIO,      TrainerSlotStatus.CANCELLED, tutor2, null);
+        slot(trainer2, base.plusDays(16).atTime(9, 0),  VisitType.PRESENTIEL, TrainerSlotStatus.FREE,      null,   null);
+
         log.info("=== Donnees de demonstration creees ===");
-        log.info("  12 rapports (jan 2026 -> avr 2026) — tous complets");
+        log.info("  16 rapports (jan 2026 -> mois dernier) + 10 creneaux de visite");
         log.info("  admin@example.com    / password123  (ADMIN)");
-        log.info("  trainer1@example.com / password123  (TRAINER — Jean Dupont)");
-        log.info("  trainer2@example.com / password123  (TRAINER — Sophie Bernard)");
-        log.info("  tutor1@example.com   / password123  (TUTOR   — Pierre Martin)");
-        log.info("  tutor2@example.com   / password123  (TUTOR   — Marie Leblanc)");
-        log.info("  student1@example.com / password123  (Alice — COMPLETED/COMPLETED/COMPLETED/DRAFT)");
-        log.info("  student2@example.com / password123  (Bob   — COMPLETED/COMPLETED/TRAINER_VALIDATED/AUTO_VALIDATED)");
-        log.info("  student3@example.com / password123  (Clara — COMPLETED/COMPLETED/STUDENT_VALIDATED/DRAFT)");
+        log.info("  trainer1@example.com / password123  (TRAINER — Jean Dupont : Alice, Bob, David)");
+        log.info("  trainer2@example.com / password123  (TRAINER — Sophie Bernard : Clara)");
+        log.info("  tutor1@example.com   / password123  (TUTOR   — Pierre Martin : 2 creneaux a confirmer)");
+        log.info("  tutor2@example.com   / password123  (TUTOR   — Marie Leblanc : visite confirmee)");
+        log.info("  tutor3@example.com   / password123  (TUTOR   — Luc Moreau : 1 creneau a confirmer)");
+        log.info("  student1@example.com / password123  (Alice — rapport du mois dernier en DRAFT)");
+        log.info("  student2@example.com / password123  (Bob   — rapport du mois dernier STUDENT_VALIDATED)");
+        log.info("  student3@example.com / password123  (Clara — rapport du mois dernier TRAINER_VALIDATED)");
+        log.info("  student4@example.com / password123  (David — rapport du mois dernier STUDENT_VALIDATED)");
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -326,6 +425,16 @@ public class SeedService {
     private void comment(MonthlyReport r, User author, String content) {
         commentRepo.save(ReportComment.builder()
                 .report(r).author(author).authorRole(author.getRole()).content(content).build());
+    }
+
+    private TrainerSlot slot(User trainer, LocalDateTime dateTime, VisitType type,
+                             TrainerSlotStatus status, User proposedTo, User bookedBy) {
+        TrainerSlot s = TrainerSlot.builder()
+                .trainer(trainer).dateTime(dateTime).type(type).status(status)
+                .proposedTo(proposedTo).bookedBy(bookedBy).build();
+        if (proposedTo != null) s.setProposedAt(LocalDateTime.now().minusDays(2));
+        if (bookedBy   != null) s.setBookedAt(LocalDateTime.now().minusDays(1));
+        return slotRepo.save(s);
     }
 
     private User uoc(String email, String pwd, String first, String last, String phone, Role role) {

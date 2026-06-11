@@ -47,6 +47,10 @@ public class VisitService {
         User trainer = getUser(trainerEmail);
         requireRole(trainer, Role.TRAINER);
 
+        if (req.dateTime().isBefore(LocalDateTime.now())) {
+            throw new ConflictException("Impossible de créer un créneau dans le passé");
+        }
+
         // Bloquer si un créneau existe déjà ±30 min sur ce même créneau
         LocalDateTime from = req.dateTime().minusMinutes(29);
         LocalDateTime to   = req.dateTime().plusMinutes(29);

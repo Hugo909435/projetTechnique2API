@@ -3,6 +3,7 @@ package app.repository;
 import app.model.MonthlyReport;
 import app.model.ReportStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -31,4 +32,14 @@ public interface MonthlyReportRepository extends JpaRepository<MonthlyReport, Lo
          + "LEFT JOIN FETCH r.sections "
          + "WHERE r.id = :id")
     Optional<MonthlyReport> findByIdWithSections(@Param("id") Long id);
+
+    void deleteByStudentId(Long studentId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE MonthlyReport r SET r.validatedByTrainer = null WHERE r.validatedByTrainer.id = :trainerId")
+    void clearValidatedByTrainer(@Param("trainerId") Long trainerId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE MonthlyReport r SET r.validatedByTutor = null WHERE r.validatedByTutor.id = :tutorId")
+    void clearValidatedByTutor(@Param("tutorId") Long tutorId);
 }

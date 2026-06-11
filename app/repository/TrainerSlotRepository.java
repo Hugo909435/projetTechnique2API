@@ -3,6 +3,7 @@ package app.repository;
 import app.model.TrainerSlot;
 import app.model.TrainerSlotStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -28,4 +29,14 @@ public interface TrainerSlotRepository extends JpaRepository<TrainerSlot, Long> 
     @Query("SELECT s FROM TrainerSlot s WHERE s.trainer.id = :trainerId AND s.proposedTo.id = :tutorId AND s.status = 'PROPOSED'")
     List<TrainerSlot> findProposedByTrainerToTutor(@Param("trainerId") Long trainerId,
                                                     @Param("tutorId") Long tutorId);
+
+    void deleteByTrainerId(Long trainerId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE TrainerSlot ts SET ts.proposedTo = null WHERE ts.proposedTo.id = :userId")
+    void clearProposedTo(@Param("userId") Long userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE TrainerSlot ts SET ts.bookedBy = null WHERE ts.bookedBy.id = :userId")
+    void clearBookedBy(@Param("userId") Long userId);
 }

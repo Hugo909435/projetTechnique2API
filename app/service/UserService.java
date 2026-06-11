@@ -9,7 +9,11 @@ import app.exception.ResourceNotFoundException;
 import app.model.Role;
 import app.model.StudentProfile;
 import app.model.User;
+import app.repository.MonthlyReportRepository;
+import app.repository.ReportCommentRepository;
+import app.repository.ReportStatusLogRepository;
 import app.repository.StudentProfileRepository;
+import app.repository.TrainerSlotRepository;
 import app.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,13 +27,25 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final StudentProfileRepository studentProfileRepository;
+    private final MonthlyReportRepository monthlyReportRepository;
+    private final ReportCommentRepository reportCommentRepository;
+    private final ReportStatusLogRepository reportStatusLogRepository;
+    private final TrainerSlotRepository trainerSlotRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserService(UserRepository userRepository,
                        StudentProfileRepository studentProfileRepository,
+                       MonthlyReportRepository monthlyReportRepository,
+                       ReportCommentRepository reportCommentRepository,
+                       ReportStatusLogRepository reportStatusLogRepository,
+                       TrainerSlotRepository trainerSlotRepository,
                        PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.studentProfileRepository = studentProfileRepository;
+        this.monthlyReportRepository = monthlyReportRepository;
+        this.reportCommentRepository = reportCommentRepository;
+        this.reportStatusLogRepository = reportStatusLogRepository;
+        this.trainerSlotRepository = trainerSlotRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -112,7 +128,33 @@ public class UserService {
     public void deleteUser(Long id, String requesterEmail) {
         User requester = requireUser(requesterEmail);
         if (requester.getRole() != Role.ADMIN) throw new ForbiddenException("Seul un admin peut supprimer des comptes");
-        if (!userRepository.existsById(id)) throw new ResourceNotFoundException("Utilisateur introuvable : " + id);
+        User target = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable : " + id));
+
+        switch (target.getRole()) {
+            case STUDENT -> {
+                reportCommentRepository.deleteByReportStudentId(id);
+                monthlyReportRepository.deleteByStudentId(id);
+                studentProfileRepository.deleteByStudentId(id);
+            }
+            case TRAINER -> {
+                monthlyReportRepository.clearValidatedByTrainer(id);
+                reportStatusLogRepository.clearChangedBy(id);
+                reportCommentRepository.deleteByAuthorId(id);
+                trainerSlotRepository.deleteByTrainerId(id);
+                studentProfileRepository.clearTrainerFromProfiles(id);
+            }
+            case TUTOR -> {
+                monthlyReportRepository.clearValidatedByTutor(id);
+                reportStatusLogRepository.clearChangedBy(id);
+                reportCommentRepository.deleteByAuthorId(id);
+                trainerSlotRepository.clearProposedTo(id);
+                trainerSlotRepository.clearBookedBy(id);
+                studentProfileRepository.clearTutorFromProfiles(id);
+            }
+            default -> reportStatusLogRepository.clearChangedBy(id);
+        }
+
         userRepository.deleteById(id);
     }
 
